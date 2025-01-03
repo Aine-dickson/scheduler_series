@@ -1,0 +1,1 @@
+/home/ainedeveloper/Projects/Rust-Apps/scheduler_series/task_scheduler/scheduler_ui/target/debug/scheduler_ui: /home/ainedeveloper/Projects/Rust-Apps/scheduler_series/task_scheduler/scheduler_ui/src/main.rs /home/ainedeveloper/Projects/Rust-Apps/scheduler_series/task_scheduler/task_lib/src/lib.rs
