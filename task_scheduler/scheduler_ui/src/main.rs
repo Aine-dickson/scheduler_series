@@ -1,4 +1,4 @@
-use std::{env::args, fs::{exists, read_to_string, File, OpenOptions}, io::{stdin, Write}, process::{exit, Command, Stdio}};
+use std::{collections::HashMap, env::args, fs::{exists, read_to_string, File, OpenOptions}, io::{stdin, Write}, process::{exit, Command, Stdio}};
 
 use sysinfo::{Pid, System};
 use task_lib::Task;
@@ -11,7 +11,7 @@ fn main() {
         let creator = File::create("../tasks.json");
         match creator {
             Ok(mut file) => {
-                file.write_all("[]".as_bytes()).unwrap();
+                file.write_all("{}".as_bytes()).unwrap();
                 file.flush().unwrap();
             }
             Err(er) => {
@@ -21,12 +21,12 @@ fn main() {
         }
     }
 
-    let mut tasks: Vec<Task> = vec![];
+    let mut _tasks: HashMap<String, Task> = HashMap::new();
 
     match read_to_string("../tasks.json") {
         Ok(value) => {
             match serde_json::from_str(&value) {
-                Ok(_tasks) => tasks = _tasks,
+                Ok(tasks_) => _tasks = tasks_,
                 Err(err) => {
                     println!("Failed to parse tasks from tasks file\nExiting...{}", err);
                     exit(1);
@@ -42,7 +42,7 @@ fn main() {
     while let Some(arg) = args_.peek() {
         match arg.as_str() {
             "list" => {
-                println!("You need a list?")
+                list_tasks(&_tasks);
             }
             "run" => {
                 run_engine_process();
@@ -54,13 +54,13 @@ fn main() {
                 println!("You need help?")
             }
             "add" => {
-                create_task(&mut tasks)
+                create_task(&mut _tasks)
             }
             "modify" => {
                 println!("You need help?")
             }
             "delete" => {
-                println!("You need help?")
+                delete_task(&mut _tasks);
             }
             _ => {
                 println!("Unknown argument {}", arg)
@@ -79,6 +79,7 @@ fn run_engine_process() {
             File::create("pid.txt").unwrap();
         }
 
+        // Obtain and write engine process' id to pid text file to be obtained incase there need to stop the process
         if let Ok(mut pid_file) = OpenOptions::new().write(true).truncate(true).open("pid.txt") {
             pid_file.write_all(format!("{}", child_p.id()).as_bytes()).unwrap();
             pid_file.flush().unwrap();
@@ -96,7 +97,7 @@ fn stop_engine(){
     }
 }
 
-fn create_task(tasks: &mut Vec<Task>) {
+fn create_task(tasks: &mut HashMap<String, Task>) {
     let mut new_task = Task::new(6, 0, String::new());
 
     for count in 1..=4 {
@@ -144,10 +145,87 @@ fn create_task(tasks: &mut Vec<Task>) {
         }
     }
 
-    tasks.push(new_task);
+    tasks.insert(new_task.id.clone(), new_task.clone());
     let tasks_json_fmt = serde_json::to_string_pretty(tasks).unwrap();
 
     let mut file = OpenOptions::new().truncate(true).write(true).open("../tasks.json").unwrap();
     file.write_all(tasks_json_fmt.as_bytes()).unwrap();
     file.flush().unwrap();
+
+    if !exists("../task_addition.json").unwrap() {
+        let mut addition_file = File::create("../task_addition.json").unwrap();
+        addition_file.write_all("[]".as_bytes()).unwrap();
+        file.flush().unwrap();
+    }
+
+    if let Ok(data) = read_to_string("../task_addition.json") {
+        if let Ok(mut ids) = serde_json::from_str::<Vec<String>>(&data) {
+            ids.push(new_task.id);
+            let mut addition_file = OpenOptions::new().write(true).truncate(true).open("../task_addition.json").unwrap();
+            if let Ok(ids_json_fmt) = serde_json::to_string_pretty(&ids){
+                addition_file.write_all(ids_json_fmt.as_bytes()).unwrap();
+            }
+        }   
+    }
+}
+
+fn delete_task(tasks: &mut HashMap<String, Task>) {
+
+    list_tasks(tasks);
+    println!("Provide the task number you want to delete");
+
+    let mut _task_to_delete: String = String::new();
+
+    let mut input = String::new();
+    match stdin().read_line(&mut input) {
+        Ok(_) => {
+            let task_num = input.trim().parse::<usize>().unwrap();
+
+            let (id, _)= tasks.iter().nth(task_num-1).unwrap();
+
+            _task_to_delete = id.to_string();
+        }
+        Err(_) => {
+            println!("Error while reading input\nTry again");
+            exit(1);
+        },
+    }
+
+    let tasks_json_fmt = serde_json::to_string_pretty(tasks).unwrap();
+
+    // Update the tasks json file with current tasks that exclude the deleted
+    let mut file = OpenOptions::new().truncate(true).write(true).open("../tasks.json").unwrap();
+    file.write_all(tasks_json_fmt.as_bytes()).unwrap();
+    file.flush().unwrap();
+
+    if !exists("../task_deletion.json").unwrap() {
+        let mut deletion_file = File::create("../task_deletion.json").unwrap();
+        deletion_file.write_all("[]".as_bytes()).unwrap();
+        file.flush().unwrap();
+    }
+
+    if let Ok(data) = read_to_string("../task_deletion.json") {
+        if let Ok(mut ids) = serde_json::from_str::<Vec<String>>(&data) {
+            ids.push(_task_to_delete);
+            let mut deletion_file = OpenOptions::new().write(true).truncate(true).open("../task_deletion.json").unwrap();
+            if let Ok(ids_json_fmt) = serde_json::to_string_pretty(&ids){
+                deletion_file.write_all(ids_json_fmt.as_bytes()).unwrap();
+            }
+        }   
+    }
+
+
+}
+
+fn list_tasks(tasks: &HashMap<String, Task>) {
+    if tasks.len() == 0 {
+        println!("No tasks available");
+        return;
+    }
+
+    let mut count = 1;
+    for (_id, task) in tasks.iter() {
+        println!("{}. {}", count, task);
+        count +=1;
+    }
 }
