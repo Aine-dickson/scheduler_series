@@ -181,8 +181,9 @@ fn delete_task(tasks: &mut HashMap<String, Task>) {
         Ok(_) => {
             let task_num = input.trim().parse::<usize>().unwrap();
 
-            let (id, _)= tasks.iter().nth(task_num-1).unwrap();
-
+            let tasks_clone = tasks.clone();
+            let (id, _)= tasks_clone.iter().nth(task_num-1).unwrap();
+            tasks.remove_entry(id);
             _task_to_delete = id.to_string();
         }
         Err(_) => {
