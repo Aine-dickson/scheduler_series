@@ -6,20 +6,7 @@ use task_lib::Task;
 fn main() {
 
     let mut args_ = args().skip(1).peekable();
-
-    if !exists("../tasks.json").unwrap() {
-        let creator = File::create("../tasks.json");
-        match creator {
-            Ok(mut file) => {
-                file.write_all("{}".as_bytes()).unwrap();
-                file.flush().unwrap();
-            }
-            Err(er) => {
-                println!("Error: {}\nExiting due to failure to create tasks file", er);
-                exit(1);
-            }
-        }
-    }
+    initialize_utility_files();
 
     let mut _tasks: HashMap<String, Task> = HashMap::new();
 
@@ -152,12 +139,6 @@ fn create_task(tasks: &mut HashMap<String, Task>) {
     file.write_all(tasks_json_fmt.as_bytes()).unwrap();
     file.flush().unwrap();
 
-    if !exists("../task_addition.json").unwrap() {
-        let mut addition_file = File::create("../task_addition.json").unwrap();
-        addition_file.write_all("[]".as_bytes()).unwrap();
-        file.flush().unwrap();
-    }
-
     if let Ok(data) = read_to_string("../task_addition.json") {
         if let Ok(mut ids) = serde_json::from_str::<Vec<String>>(&data) {
             ids.push(new_task.id);
@@ -199,12 +180,6 @@ fn delete_task(tasks: &mut HashMap<String, Task>) {
     file.write_all(tasks_json_fmt.as_bytes()).unwrap();
     file.flush().unwrap();
 
-    if !exists("../task_deletion.json").unwrap() {
-        let mut deletion_file = File::create("../task_deletion.json").unwrap();
-        deletion_file.write_all("[]".as_bytes()).unwrap();
-        file.flush().unwrap();
-    }
-
     if let Ok(data) = read_to_string("../task_deletion.json") {
         if let Ok(mut ids) = serde_json::from_str::<Vec<String>>(&data) {
             ids.push(_task_to_delete);
@@ -214,8 +189,6 @@ fn delete_task(tasks: &mut HashMap<String, Task>) {
             }
         }   
     }
-
-
 }
 
 fn list_tasks(tasks: &HashMap<String, Task>) {
@@ -228,5 +201,33 @@ fn list_tasks(tasks: &HashMap<String, Task>) {
     for (_id, task) in tasks.iter() {
         println!("{}. {}", count, task);
         count +=1;
+    }
+}
+
+fn initialize_utility_files() {
+    if !exists("../task_deletion.json").unwrap() {
+        let mut deletion_file = File::create("../task_deletion.json").unwrap();
+        deletion_file.write_all("[]".as_bytes()).unwrap();
+        deletion_file.flush().unwrap();
+    }
+
+    if !exists("../task_addition.json").unwrap() {
+        let mut addition_file = File::create("../task_addition.json").unwrap();
+        addition_file.write_all("[]".as_bytes()).unwrap();
+        addition_file.flush().unwrap();
+    }
+
+    if !exists("../tasks.json").unwrap() {
+        let creator = File::create("../tasks.json");
+        match creator {
+            Ok(mut file) => {
+                file.write_all("{}".as_bytes()).unwrap();
+                file.flush().unwrap();
+            }
+            Err(er) => {
+                println!("Error: {}\nExiting due to failure to create tasks file", er);
+                exit(1);
+            }
+        }
     }
 }
